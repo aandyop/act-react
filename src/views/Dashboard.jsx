@@ -57,7 +57,12 @@ export default function Dashboard() {
           <SalesCard ventas={ventas} />
           <GalleryCard onOpenGallery={() => setActiveTab('galeria')} />
           <ProductCard productos={productos} setProductos={setProductos} />
-          <CollectionCard colecciones={colecciones} setColecciones={setColecciones} />
+          <CollectionCard 
+            colecciones={colecciones} 
+            setColecciones={setColecciones} 
+            productos={productos} 
+            setProductos={setProductos} 
+          />
           <StockCard stock={stock} productos={productos} />
         </div>
       </main>

@@ -1,61 +1,71 @@
-import { Card } from 'flowbite-react';
-import { HiArchive, HiExclamation } from 'react-icons/hi';
+import { Card, Badge } from 'flowbite-react';
+import { HiCube } from 'react-icons/hi';
 
-export default function StockCard({ stock = [], productos = [] }) {
+export default function StockCard({ productos = [], ventas = [] }) {
+  // Cálculo en tiempo real del stock disponible restando las unidades vendidas en los pedidos
+  const stockCalculado = (productos || []).map(p => {
+    let unidadesVendidas = 0;
+    
+    (ventas || []).forEach(v => {
+      if (v.itemsStruct && Array.isArray(v.itemsStruct)) {
+        v.itemsStruct.forEach(item => {
+          if (Number(item.productoId) === Number(p.id)) {
+            unidadesVendidas += Number(item.cantidad || 0);
+          }
+        });
+      }
+    });
+
+    const stockBase = Number(p.stock || 0);
+    const disponibles = Math.max(stockBase - unidadesVendidas, 0);
+    const umbralAlerta = 2; // Umbral crítico para mostrar "Stock Bajo"
+
+    return {
+      ...p,
+      disponibles,
+      esStockBajo: disponibles <= umbralAlerta
+    };
+  });
+
   return (
-    <Card className="shadow-sm border-none">
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <h5 className="text-lg font-bold text-slate-800">Control de Stock</h5>
-          <p className="text-xs text-slate-500">
-            Inventario y umbrales críticos de la tienda
-          </p>
+    <Card className="shadow-sm border-none bg-white flex flex-col justify-between">
+      <div>
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h5 className="text-lg font-bold text-slate-800">Control de Stock</h5>
+            <p className="text-xs text-slate-500">Inventario y umbrales críticos de la tienda</p>
+          </div>
+          <div className="bg-amber-500/10 text-amber-600 p-3 rounded-xl w-fit">
+            <HiCube className="h-6 w-6" />
+          </div>
         </div>
-        <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
-          <HiArchive className="h-5 w-5" />
-        </div>
-      </div>
 
-      {/* Lista de inventario y stock */}
-      <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
-        {stock.length === 0 ? (
-          <p className="text-xs text-slate-400 text-center py-4">No hay registros de stock disponibles.</p>
-        ) : (
-          stock.map((item) => {
-            // Relacionamos el stock con el producto usando 'productoId'
-            const producto = productos.find((p) => p.id === item.productoId);
-            const nombreProducto = producto ? producto.nombre : `Reloj ID: ${item.productoId}`;
-            
-            // Verificamos si la cantidad actual es menor o igual al umbral de alerta
-            const esStockBajo = item.cantidad <= item.alerta;
-
-            return (
+        {/* Lista dinámica de stock */}
+        <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+          {stockCalculado.length === 0 ? (
+            <p className="text-xs text-slate-400 text-center py-6">No hay productos en inventario.</p>
+          ) : (
+            stockCalculado.map((item) => (
               <div 
                 key={item.id} 
-                className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
-                  esStockBajo 
-                    ? 'bg-amber-50 border-amber-300 shadow-sm' 
-                    : 'bg-slate-50 border-slate-200'
-                }`}
+                className="flex items-center justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 shadow-2xs"
               >
                 <div>
-                  <p className="text-sm font-bold text-slate-800">{nombreProducto}</p>
-                  <p className="text-xs text-slate-500">
-                    Disponibles: <span className="font-semibold text-slate-700">{item.cantidad}</span> 
-                    <span className="text-[10px] text-slate-400 ml-1">(Mínimo requerido: {item.alerta})</span>
+                  <h6 className="text-sm font-bold text-slate-900">{item.nombre}</h6>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Disponibles: <strong className="text-slate-800">{item.disponibles}</strong> <span className="text-slate-400">({item.marca})</span>
                   </p>
                 </div>
 
-                {/* Alerta visual en amarillo si hay stock bajo */}
-                {esStockBajo && (
-                  <div className="flex items-center gap-1 bg-amber-400 text-slate-950 px-2.5 py-1 rounded-md text-[11px] font-black shadow-sm animate-pulse">
-                    <HiExclamation className="h-3.5 w-3.5" /> Stock Bajo
-                  </div>
+                {item.esStockBajo && (
+                  <Badge color="warning" size="sm" className="font-bold py-1 px-2.5">
+                    Stock Bajo
+                  </Badge>
                 )}
               </div>
-            );
-          })
-        )}
+            ))
+          )}
+        </div>
       </div>
     </Card>
   );

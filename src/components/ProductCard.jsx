@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card, Button, Badge, Modal, ModalHeader, ModalBody, TextInput } from 'flowbite-react';
 import { HiPlus, HiPencil, HiTrash, HiUpload } from 'react-icons/hi';
 
-export default function ProductCard({ productos, setProductos }) {
+export default function ProductCard({ productos = [], setProductos, galeria = [], setGaleria }) {
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
 
@@ -36,64 +36,94 @@ export default function ProductCard({ productos, setProductos }) {
     setShowModal(true);
   };
 
-  // Manejador para la subida de una sola imagen local
+  // Carga de la imagen local
   const handleImageUpload = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files && e.target.files[0];
     if (file) {
       const imageUrl = URL.createObjectURL(file);
-      setForm({ ...form, imagen: imageUrl });
+      setForm((prev) => ({ ...prev, imagen: imageUrl }));
     }
   };
 
-  // Manejador del textarea con límite de 500 palabras
   const handleDescriptionChange = (e) => {
     const text = e.target.value;
     const words = text.trim() ? text.trim().split(/\s+/) : [];
-    
     if (words.length <= 500) {
-      setForm({ ...form, descripcion: text });
+      setForm((prev) => ({ ...prev, descripcion: text }));
     } else {
-      const limitedText = words.slice(0, 500).join(' ');
-      setForm({ ...form, descripcion: limitedText });
+      setForm((prev) => ({ ...prev, descripcion: words.slice(0, 500).join(' ') }));
     }
   };
 
   const handleSave = (e) => {
     e.preventDefault();
+    const imagenFinal = form.imagen || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800";
+
     if (editingProduct !== null) {
-      setProductos(productos.map(p => 
-        p.id === editingProduct 
-          ? { 
-              ...form, 
-              id: editingProduct, 
-              precio: Number(form.precio), 
-              anioFabricacion: Number(form.anioFabricacion),
-              stock: Number(form.stock),
-              coleccionId: p.coleccionId || 1,
-              galeriaId: p.galeriaId || p.id
-            } 
-          : p
-      ));
+      // 1. Actualizar el producto existente
+      setProductos((prevProds) => 
+        prevProds.map(p => 
+          p.id === editingProduct 
+            ? { 
+                ...form, 
+                id: editingProduct, 
+                precio: Number(form.precio), 
+                anioFabricacion: Number(form.anioFabricacion),
+                stock: Number(form.stock),
+                imagen: imagenFinal
+              } 
+            : p
+        )
+      );
+
+      // 2. Actualizar la imagen en la Galería si cambió
+      if (setGaleria) {
+        setGaleria((prevGal) => 
+          prevGal.map(g => 
+            g.productoId === editingProduct 
+              ? { ...g, urlImagen: imagenFinal } 
+              : g
+          )
+        );
+      }
     } else {
-      const newId = Date.now();
+      // 1. Crear nuevo ID único para el reloj
+      const newProductId = Date.now();
       const newProd = {
         ...form,
-        id: newId,
+        id: newProductId,
         precio: Number(form.precio),
         anioFabricacion: Number(form.anioFabricacion),
         stock: Number(form.stock),
         coleccionId: 1,
-        galeriaId: newId,
-        imagen: form.imagen || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500"
+        galeriaId: newProductId,
+        imagen: imagenFinal
       };
-      setProductos([newProd, ...productos]);
+
+      // Agregar el nuevo producto al inicio de la lista
+      setProductos((prevProds) => [newProd, ...prevProds]);
+
+      // 2. AGREGAR LA NUEVA FOTO DIRECTAMENTE AL INICIO DE LA GALERÍA
+      if (setGaleria) {
+        const nuevaFotoGaleria = {
+          id: Date.now() + 1,
+          productoId: newProductId,
+          urlImagen: imagenFinal,
+          orden: galeria.length + 1
+        };
+        setGaleria((prevGal) => [nuevaFotoGaleria, ...prevGal]);
+      }
     }
+
     setShowModal(false);
   };
 
   const handleDelete = (id) => {
     if (confirm("¿Estás seguro de eliminar este reloj del catálogo?")) {
-      setProductos(productos.filter(p => p.id !== id));
+      setProductos((prev) => prev.filter(p => p.id !== id));
+      if (setGaleria) {
+        setGaleria((prev) => prev.filter(g => g.productoId !== id));
+      }
     }
   };
 
@@ -159,17 +189,16 @@ export default function ProductCard({ productos, setProductos }) {
         </div>
       </Card>
 
-      {/* Modal Ampliado con etiquetas explicativas 100% visibles */}
-      <Modal show={showModal} onClose={() => setShowModal(false)} size="3xl">
+      {/* Modal para Crear y Editar Reloj */}
+      <Modal show={showModal} onClose={() => setShowModal(false)} size="xl">
         <ModalHeader>
           {editingProduct !== null ? 'Editar Reloj de Lujo' : 'Registrar Nuevo Reloj'}
         </ModalHeader>
         <ModalBody>
           <form onSubmit={handleSave} className="space-y-5">
-            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
                   Nombre o Modelo del Reloj
                 </label>
                 <TextInput 
@@ -180,7 +209,7 @@ export default function ProductCard({ productos, setProductos }) {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
                   Marca del Reloj
                 </label>
                 <TextInput 
@@ -194,7 +223,7 @@ export default function ProductCard({ productos, setProductos }) {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
                   Precio ($ USD)
                 </label>
                 <TextInput 
@@ -206,7 +235,7 @@ export default function ProductCard({ productos, setProductos }) {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
                   Año de Fabricación
                 </label>
                 <TextInput 
@@ -218,7 +247,7 @@ export default function ProductCard({ productos, setProductos }) {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
                   Stock (Unidades)
                 </label>
                 <TextInput 
@@ -231,13 +260,14 @@ export default function ProductCard({ productos, setProductos }) {
               </div>
             </div>
 
+            {/* SECCIÓN SUBIR IMAGEN */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
                 Imagen Principal del Reloj
               </label>
               <div className="flex items-center gap-4 p-3 bg-slate-50 border border-slate-200 rounded-lg">
                 {form.imagen ? (
-                  <img src={form.imagen} alt="Vista previa" className="w-16 h-16 object-cover rounded-md border shadow-sm" />
+                  <img src={form.imagen} alt="Vista previa" className="w-16 h-16 object-cover rounded-md border shadow-xs" />
                 ) : (
                   <div className="w-16 h-16 bg-slate-200 rounded-md flex items-center justify-center text-xs text-slate-400 font-bold">
                     Sin foto
@@ -260,7 +290,7 @@ export default function ProductCard({ productos, setProductos }) {
 
             <div>
               <div className="flex justify-between items-center mb-1">
-                <label className="block text-xs font-bold text-slate-700">
+                <label className="block text-xs font-bold text-slate-700 uppercase">
                   Descripción detallada del reloj
                 </label>
                 <span className={`text-xs font-semibold ${wordCount > 450 ? 'text-amber-600' : 'text-slate-400'}`}>
@@ -268,7 +298,7 @@ export default function ProductCard({ productos, setProductos }) {
                 </span>
               </div>
               <textarea 
-                rows="5"
+                rows="4"
                 value={form.descripcion} 
                 onChange={handleDescriptionChange}
                 placeholder="Mencione materiales, tipo de movimiento, cristal de zafiro y características principales..."
